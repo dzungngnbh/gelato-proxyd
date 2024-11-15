@@ -26,8 +26,8 @@ func NewAuthStore() *AuthStore {
 	}
 }
 
-// Add adds a key value pair to the AuthStore
-func (a *AuthStore) Add(key, value string) {
+// Set adds a key value pair to the AuthStore
+func (a *AuthStore) Set(key, value string) {
 	if value == "" {
 		return
 	}
@@ -35,8 +35,8 @@ func (a *AuthStore) Add(key, value string) {
 	a.keys[key] = value
 }
 
-// Remove removes a key from the AuthStore
-func (a *AuthStore) Remove(key string) {
+// Delete removes a key from the AuthStore
+func (a *AuthStore) Delete(key string) {
 	delete(a.keys, key)
 }
 
@@ -110,28 +110,44 @@ func FetchKeysFromDb() map[string]string {
 }
 
 // UpsertNewAuthKey inserts a new auth key into the database if not existed otherwise re-enable it.
-func UpsertNewAuthKey(authKey string) {
+func UpsertNewAuthKey(authKey string, authValue string) {
+	if authKey == "" || authValue == "" {
+		return
+	}
+
 	conn := GetConn()
 	defer conn.Close(context.Background())
 
 	authKey = strings.TrimSpace(authKey)
-	var isDisabled bool
-	err := conn.QueryRow(context.Background(), "select auth_key, is_disabled from auth_keys where auth_key=$1", authKey).Scan(&authKey, &isDisabled)
-	if err != nil {
-		log.Error("query database failed", "err", err)
-	} else {
-		if isDisabled {
-			_, err := conn.Exec(context.Background(), "update auth_keys set is_disabled=false where auth_key=$1", authKey)
-			if err != nil {
-				log.Error("update database failed", "err", err)
-			}
+	err := conn.QueryRow(context.Background(), "select auth_key  from auth_keys where auth_key=$1", authKey).Scan(&authKey)
+	if err == nil {
+		// re-enable the key if it is disabled and set new value
+		_, err := conn.Exec(context.Background(), "update auth_keys set is_disabled=false, auth_value=$1 where auth_key=$2", authValue, authKey)
+		if err != nil {
+			log.Error("update database failed", "err", err)
 		}
 		return
 	}
 
-	_, err = conn.Exec(context.Background(), "insert into auth_keys (auth_key) values($1)", authKey)
+	_, err = conn.Exec(context.Background(), "insert into auth_keys (auth_key, auth_value) values($1, $2)", authKey, authValue)
 	if err != nil {
 		log.Error("insert database failed", "err", err)
 		return
+	}
+}
+
+// DisableAuthKey disables an auth key in the database.
+func DisableAuthKey(authKey string) {
+	if authKey == "" {
+		return
+	}
+
+	conn := GetConn()
+	defer conn.Close(context.Background())
+
+	authKey = strings.TrimSpace(authKey)
+	_, err := conn.Exec(context.Background(), "update auth_keys set is_disabled=true where auth_key=$1", authKey)
+	if err != nil {
+		log.Error("update database failed", "err", err)
 	}
 }

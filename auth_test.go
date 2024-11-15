@@ -4,8 +4,8 @@ import "testing"
 
 func TestAuthStore(t *testing.T) {
 	a := NewAuthStore()
-	// test Add key
-	a.Add("key", "value")
+	// test Set key
+	a.Set("key", "value")
 
 	// test Valid key returns value
 	isValid := a.Valid("key", "value")
@@ -14,7 +14,7 @@ func TestAuthStore(t *testing.T) {
 	}
 
 	// remove key
-	a.Remove("key")
+	a.Delete("key")
 
 	isValid = a.Valid("key", "value")
 	if isValid != "" {
@@ -22,7 +22,7 @@ func TestAuthStore(t *testing.T) {
 	}
 
 	// test Get
-	a.Add("key", "value")
+	a.Set("key", "value")
 	val := a.Get("key")
 	if val != "value" {
 		t.Errorf("Expected value, got %v", val)

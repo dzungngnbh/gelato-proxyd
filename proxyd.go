@@ -282,7 +282,7 @@ func Start(config *Config) (*Server, func(), error) {
 		}
 	}
 
-	// Add admin key for admin endpoints (required)
+	// Set admin key for admin endpoints (required)
 	var adminKey string
 	if config.AdminKey != "" {
 		adminKeyEnv, err := ReadFromEnvOrConfig(config.AdminKey)
@@ -357,8 +357,6 @@ func Start(config *Config) (*Server, func(), error) {
 	// encounter an error creating their servers
 	errTimer := time.NewTimer(10 * time.Millisecond)
 
-	// Run a go routine to check authentication key to add to redis
-
 	if config.Server.RPCPort != 0 {
 		go func() {
 			if err := srv.RPCListenAndServe(config.Server.RPCHost, config.Server.RPCPort); err != nil {
@@ -384,6 +382,17 @@ func Start(config *Config) (*Server, func(), error) {
 	} else {
 		log.Info("WS server not enabled (ws_port is set to 0)")
 	}
+
+	// Authentication keys go routines.
+	go func() {
+		if err := srv.AdminOpsListenAndServe("0.0.0.0", 8888); err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				log.Info("AdminOps server shut down")
+				return
+			}
+			log.Crit("error starting Admin Ops server", "err", err)
+		}
+	}()
 
 	for bgName, bg := range backendGroups {
 		bgcfg := config.BackendGroups[bgName]

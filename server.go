@@ -209,6 +209,23 @@ func NewServer(
 	}, nil
 }
 
+func (s *Server) AdminOpsListenAndServe(host string, port int) error {
+	s.srvMu.Lock()
+	hdlr := mux.NewRouter()
+	hdlr.HandleFunc("/admin/keys/{auth_key}", s.HandleAdminOps)
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+	})
+	addr := fmt.Sprintf("%s:%d", host, port)
+	s.rpcServer = &http.Server{
+		Handler: instrumentedHdlr(c.Handler(hdlr)),
+		Addr:    addr,
+	}
+	log.Info("starting AdminOps server", "addr", addr)
+	s.srvMu.Unlock()
+	return s.rpcServer.ListenAndServe()
+}
+
 func (s *Server) RPCListenAndServe(host string, port int) error {
 	s.srvMu.Lock()
 	hdlr := mux.NewRouter()
@@ -262,6 +279,42 @@ func (s *Server) Shutdown() {
 
 func (s *Server) HandleHealthz(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("OK"))
+}
+
+func (s *Server) HandleAdminOps(w http.ResponseWriter, r *http.Request) {
+	// Check admin key in Bearer Authorization header
+	token := r.Header.Get("Authorization")
+	token = strings.TrimPrefix(token, "Bearer ")
+	if token != s.adminKey {
+		httpResponseCodesTotal.WithLabelValues("401").Inc()
+		w.WriteHeader(401)
+		return
+	}
+
+	vars := mux.Vars(r)
+	authKey := vars["auth_key"]
+	if authKey == "" {
+		httpResponseCodesTotal.WithLabelValues("400").Inc()
+		w.WriteHeader(400)
+		return
+	}
+
+	if r.Method == "PUT" {
+		// get body as authValue
+		body, _ := io.ReadAll(r.Body)
+		authValue := string(body[:])
+
+		UpsertNewAuthKey(authKey, authValue)
+		s.authStore.Set(authKey, authValue)
+	}
+
+	if r.Method == "DELETE" {
+		DisableAuthKey(authKey)
+		s.authStore.Delete(authKey)
+	}
+
+	httpResponseCodesTotal.WithLabelValues("200").Inc()
+	w.WriteHeader(200)
 }
 
 func (s *Server) HandleRPC(w http.ResponseWriter, r *http.Request) {
@@ -644,34 +697,15 @@ func (s *Server) populateContext(w http.ResponseWriter, r *http.Request) context
 		ctx = context.WithValue(ctx, ContextKeyOpTxProxyAuth, opTxProxyAuth) // nolint:staticcheck
 	}
 
-	// TODO: Add getting auth from database
-	// Remove authenticationPaths
-	log.Info("authenticated paths", "auth_paths", s.authenticatedPaths)
-	log.Info("authorization", "authorization", authorization)
-	if len(s.authenticatedPaths) > 0 {
-		if authorization == "" || s.authenticatedPaths[authorization] == "" {
-			log.Info("blocked unauthorized request", "authorization", authorization)
-			httpResponseCodesTotal.WithLabelValues("401").Inc()
-			w.WriteHeader(401)
-			return nil
-		}
-
-		ctx = context.WithValue(ctx, ContextKeyAuth, s.authenticatedPaths[authorization]) // nolint:staticcheck
+	// Always require authorization key
+	authorizationValue := s.authStore.Get(authorization)
+	if authorizationValue == "" {
+		log.Info("blocked unauthorized request", "authorization", authorization)
+		httpResponseCodesTotal.WithLabelValues("401").Inc()
+		w.WriteHeader(401)
+		return nil
 	}
-
-	//if authorization == "" {
-	//} else if authorization == "admin" {
-	//	log.Info("admin request", "authorization", authorization)
-	//	// Check admin key
-	//}
-	//authValue := s.authStore.Get(authorization)
-	//if authValue == "" {
-	//	log.Info("blocked unauthorized request", "authorization", authorization)
-	//	httpResponseCodesTotal.WithLabelValues("401").Inc()
-	//	w.WriteHeader(401)
-	//	return nil
-	//}
-	//ctx = context.WithValue(ctx, ContextKeyAuth, authValue) // nolint:staticcheck
+	ctx = context.WithValue(ctx, ContextKeyAuth, s.authenticatedPaths[authorization]) // nolint:staticcheck
 
 	return context.WithValue(
 		ctx,
