@@ -282,6 +282,17 @@ func Start(config *Config) (*Server, func(), error) {
 		}
 	}
 
+	// Add admin key for admin endpoints (required)
+	var adminKey string
+	if config.AdminKey != "" {
+		adminKeyEnv, err := ReadFromEnvOrConfig(config.AdminKey)
+		log.Info("admin key", "admin_key", adminKeyEnv)
+		if err != nil {
+			return nil, nil, err
+		}
+		adminKey = adminKeyEnv
+	}
+
 	var (
 		cache    Cache
 		rpcCache RPCCache
@@ -307,6 +318,7 @@ func Start(config *Config) (*Server, func(), error) {
 		config.RPCMethodMappings,
 		config.Server.MaxBodySizeBytes,
 		authenticationPaths,
+		adminKey,
 		secondsToDuration(config.Server.TimeoutSeconds),
 		config.Server.MaxUpstreamBatchSize,
 		config.Server.EnableXServedByHeader,
@@ -344,6 +356,8 @@ func Start(config *Config) (*Server, func(), error) {
 	// 10ms to give the below goroutines enough time to
 	// encounter an error creating their servers
 	errTimer := time.NewTimer(10 * time.Millisecond)
+
+	// Run a go routine to check authentication key to add to redis
 
 	if config.Server.RPCPort != 0 {
 		go func() {

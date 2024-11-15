@@ -61,6 +61,8 @@ type Server struct {
 	enableRequestLog       bool
 	maxRequestBodyLogLen   int
 	authenticatedPaths     map[string]string
+	adminKey               string
+	authStore              *AuthStore
 	timeout                time.Duration
 	maxUpstreamBatchSize   int
 	maxBatchSize           int
@@ -89,6 +91,7 @@ func NewServer(
 	rpcMethodMappings map[string]string,
 	maxBodySize int64,
 	authenticatedPaths map[string]string,
+	adminKey string,
 	timeout time.Duration,
 	maxUpstreamBatchSize int,
 	enableServedByHeader bool,
@@ -174,6 +177,8 @@ func NewServer(
 		rateLimitHeader = rateLimitConfig.IPHeaderOverride
 	}
 
+	authStore := NewAuthStore()
+
 	return &Server{
 		BackendGroups:        backendGroups,
 		wsBackendGroup:       wsBackendGroup,
@@ -181,6 +186,8 @@ func NewServer(
 		rpcMethodMappings:    rpcMethodMappings,
 		maxBodySize:          maxBodySize,
 		authenticatedPaths:   authenticatedPaths,
+		adminKey:             adminKey,
+		authStore:            authStore,
 		timeout:              timeout,
 		maxUpstreamBatchSize: maxUpstreamBatchSize,
 		enableServedByHeader: enableServedByHeader,
@@ -620,6 +627,7 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) populateContext(w http.ResponseWriter, r *http.Request) context.Context {
 	vars := mux.Vars(r)
+	log.Info("vars", "vars", vars)
 	authorization := vars["authorization"]
 	xff := r.Header.Get(s.rateLimitHeader)
 	if xff == "" {
@@ -636,6 +644,10 @@ func (s *Server) populateContext(w http.ResponseWriter, r *http.Request) context
 		ctx = context.WithValue(ctx, ContextKeyOpTxProxyAuth, opTxProxyAuth) // nolint:staticcheck
 	}
 
+	// TODO: Add getting auth from database
+	// Remove authenticationPaths
+	log.Info("authenticated paths", "auth_paths", s.authenticatedPaths)
+	log.Info("authorization", "authorization", authorization)
 	if len(s.authenticatedPaths) > 0 {
 		if authorization == "" || s.authenticatedPaths[authorization] == "" {
 			log.Info("blocked unauthorized request", "authorization", authorization)
@@ -646,6 +658,20 @@ func (s *Server) populateContext(w http.ResponseWriter, r *http.Request) context
 
 		ctx = context.WithValue(ctx, ContextKeyAuth, s.authenticatedPaths[authorization]) // nolint:staticcheck
 	}
+
+	//if authorization == "" {
+	//} else if authorization == "admin" {
+	//	log.Info("admin request", "authorization", authorization)
+	//	// Check admin key
+	//}
+	//authValue := s.authStore.Get(authorization)
+	//if authValue == "" {
+	//	log.Info("blocked unauthorized request", "authorization", authorization)
+	//	httpResponseCodesTotal.WithLabelValues("401").Inc()
+	//	w.WriteHeader(401)
+	//	return nil
+	//}
+	//ctx = context.WithValue(ctx, ContextKeyAuth, authValue) // nolint:staticcheck
 
 	return context.WithValue(
 		ctx,

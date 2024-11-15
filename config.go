@@ -208,6 +208,7 @@ type Config struct {
 	Backends              BackendsConfig        `toml:"backends"`
 	BatchConfig           BatchConfig           `toml:"batch"`
 	Authentication        map[string]string     `toml:"authentication"`
+	AdminKey              string                `toml:"admin_key"`
 	BackendGroups         BackendGroupsConfig   `toml:"backend_groups"`
 	RPCMethodMappings     map[string]string     `toml:"rpc_method_mappings"`
 	WSMethodWhitelist     []string              `toml:"ws_method_whitelist"`
