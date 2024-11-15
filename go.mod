@@ -12,6 +12,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/golang-lru v1.0.2
+	github.com/jackc/pgx/v5 v5.7.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.17.0
 	github.com/redis/go-redis/v9 v9.2.1
@@ -19,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/xaionaro-go/weightedshuffle v0.0.0-20211213010739-6a74fbc7d24a
-	golang.org/x/sync v0.7.0
+	golang.org/x/sync v0.8.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -57,6 +58,8 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
 	github.com/holiman/uint256 v1.3.1 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/klauspost/compress v1.17.1 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -76,10 +79,10 @@ require (
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yuin/gopher-lua v1.1.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
-	golang.org/x/crypto v0.22.0 // indirect
+	golang.org/x/crypto v0.27.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
