@@ -680,7 +680,7 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) populateContext(w http.ResponseWriter, r *http.Request) context.Context {
 	vars := mux.Vars(r)
-	log.Info("vars", "vars", vars)
+	//log.Info("vars", "vars", vars)
 	authorization := vars["authorization"]
 	xff := r.Header.Get(s.rateLimitHeader)
 	if xff == "" {
