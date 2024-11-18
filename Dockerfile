@@ -1,4 +1,4 @@
-FROM golang:1.21.3-alpine3.18 as builder
+FROM golang:1.23.3-alpine3.20 as builder
 
 ARG GITCOMMIT=docker
 ARG GITDATE=docker
@@ -6,20 +6,19 @@ ARG GITVERSION=docker
 
 RUN apk add make jq git gcc musl-dev linux-headers
 
-COPY ./proxyd /app
+COPY ./ /app
 
 WORKDIR /app
 
 RUN make proxyd
 
-FROM alpine:3.18
+FROM alpine:3.20
 
 RUN apk add bind-tools jq curl bash git redis
 
-COPY ./proxyd/entrypoint.sh /bin/entrypoint.sh
+COPY ./entrypoint.sh /bin/entrypoint.sh
 
-RUN apk update && \
-    apk add ca-certificates && \
+RUN apk update && apk add ca-certificates && \
     chmod +x /bin/entrypoint.sh
 
 EXPOSE 8080

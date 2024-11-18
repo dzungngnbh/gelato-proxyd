@@ -23,3 +23,7 @@ lint:
 test-%:
 	go test -v ./... -test.run ^Test$*$$
 .PHONY: test-%
+
+docker:
+	docker build -t dzungngnbh/proxyd:latest .
+.PHONY: docker
