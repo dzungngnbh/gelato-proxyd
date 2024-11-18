@@ -11,6 +11,9 @@ This tool implements `proxyd`, an RPC request router and proxy. It does the foll
 7. Cache immutable responses from backends.
 8. Provides metrics to measure request latency, error rates, and the like.
 
+## Difference from original proxyd
+Add dynamic route for admin to add and remove authentication keys.
+
 
 ## Usage
 
