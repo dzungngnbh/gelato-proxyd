@@ -300,12 +300,28 @@ func (s *Server) HandleAdminOps(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "PUT" {
-		// get body as authValue
-		body, _ := io.ReadAll(r.Body)
-		authValue := string(body[:])
+		// Read request body
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
 
-		UpsertNewAuthKey(authKey, authValue)
-		s.authStore.Set(authKey, authValue)
+		// Validate auth value
+		authValue := strings.TrimSpace(string(body))
+		if authValue == "" {
+			http.Error(w, "Auth value cannot be empty", http.StatusBadRequest)
+			return
+		}
+
+		// Update database first
+		if err := UpsertNewAuthKey(authKey, authValue); err != nil {
+			// Log the error for debugging but don't expose internal details to client
+			log.Error("Failed to upsert auth key: %v", err)
+			http.Error(w, "Failed to update authentication key", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	if r.Method == "DELETE" {

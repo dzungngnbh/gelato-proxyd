@@ -2,6 +2,7 @@ package proxyd
 
 import (
 	"context"
+	"fmt"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/jackc/pgx/v5"
 	"os"
@@ -109,31 +110,79 @@ func FetchKeysFromDb() map[string]string {
 	return res
 }
 
-// UpsertNewAuthKey inserts a new auth key into the database if not existed otherwise re-enable it.
-func UpsertNewAuthKey(authKey string, authValue string) {
+// UpsertNewAuthKey creates or updates an authentication key-value pair in the database.
+// If the key exists, it will be re-enabled and its value updated.
+// If the key doesn't exist, a new entry will be created.
+//
+// Parameters:
+//   - authKey: The authentication key to create or update
+//   - authValue: The value to associate with the auth key
+//
+// Returns:
+//   - error: nil if successful, otherwise returns an error describing what went wrong
+func UpsertNewAuthKey(authKey string, authValue string) error {
+	// Validate input parameters
 	if authKey == "" || authValue == "" {
-		return
+		return fmt.Errorf("auth key and value cannot be empty")
 	}
 
+	// Clean input by removing leading/trailing whitespace
+	authKey = strings.TrimSpace(authKey)
+
+	// Get database connection
 	conn := GetConn()
+	if conn == nil {
+		return fmt.Errorf("failed to establish database connection")
+	}
 	defer conn.Close(context.Background())
 
-	authKey = strings.TrimSpace(authKey)
-	err := conn.QueryRow(context.Background(), "select auth_key  from auth_keys where auth_key=$1", authKey).Scan(&authKey)
+	// First, check if the key exists
+	var existingKey string
+	err := conn.QueryRow(
+		context.Background(),
+		"SELECT auth_key FROM auth_keys WHERE auth_key = $1",
+		authKey,
+	).Scan(&existingKey)
+
+	// Handle existing key case
 	if err == nil {
-		// re-enable the key if it is disabled and set new value
-		_, err := conn.Exec(context.Background(), "update auth_keys set is_disabled=false, auth_value=$1 where auth_key=$2", authValue, authKey)
+		// Key exists, update its value and enable it
+		_, err := conn.Exec(
+			context.Background(),
+			`UPDATE auth_keys 
+             SET is_disabled = false, 
+                 auth_value = $1,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE auth_key = $2`,
+			authValue,
+			authKey,
+		)
 		if err != nil {
-			log.Error("update database failed", "err", err)
+			return fmt.Errorf("failed to update existing auth key: %w", err)
 		}
-		return
+		return nil
 	}
 
-	_, err = conn.Exec(context.Background(), "insert into auth_keys (auth_key, auth_value) values($1, $2)", authKey, authValue)
-	if err != nil {
-		log.Error("insert database failed", "err", err)
-		return
+	// Handle non-existing key case
+	if err != pgx.ErrNoRows {
+		// Unexpected error during query
+		return fmt.Errorf("failed to query auth key: %w", err)
 	}
+
+	// Key doesn't exist, create new entry
+	_, err = conn.Exec(
+		context.Background(),
+		`INSERT INTO auth_keys 
+         (auth_key, auth_value, is_disabled, created_at, updated_at)
+         VALUES ($1, $2, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+		authKey,
+		authValue,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert new auth key: %w", err)
+	}
+
+	return nil
 }
 
 // DisableAuthKey disables an auth key in the database.
