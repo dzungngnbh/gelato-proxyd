@@ -2,6 +2,7 @@ package proxyd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/jackc/pgx/v5"
@@ -164,7 +165,7 @@ func UpsertNewAuthKey(authKey string, authValue string) error {
 	}
 
 	// Handle non-existing key case
-	if err != pgx.ErrNoRows {
+	if !errors.Is(err, pgx.ErrNoRows) {
 		// Unexpected error during query
 		return fmt.Errorf("failed to query auth key: %w", err)
 	}
