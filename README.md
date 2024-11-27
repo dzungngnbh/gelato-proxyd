@@ -1,4 +1,4 @@
-# rpc-proxy
+# rpc-proxy ( Modified with dynamic authentication )
 
 This tool implements `proxyd`, an RPC request router and proxy. It does the following things:
 
